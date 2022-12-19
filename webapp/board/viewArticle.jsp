@@ -57,6 +57,23 @@
 	         reader.readAsDataURL(input.files[0]);
 	     }
 	 }  
+	 function fn_reply_form(url, parentNO){
+		 var form = document.createElement("form");//자바스크립트를 이용해 동적으로 form태그를 생성한다. 
+		 form.setAttribute("method", "post");
+		 form.setAttribute("action", url);
+		 
+	     var parentNOInput = document.createElement("input");
+	     //자바스크립트로 동적으로 input태그를 생성한 후 name과 value를 articleNO와 컨트롤러로 글번호를 설정한다. 
+	     parentNOInput.setAttribute("type","hidden");
+	     parentNOInput.setAttribute("name","parentNO");
+	     parentNOInput.setAttribute("value", parentNO);
+		 
+	     form.appendChild(parentNOInput);
+	     //input태그를 form태그에 append한다. 
+	     document.body.appendChild(form);
+		 form.submit();
+		 //form태그를 body태그에 추가 한 후 서버에 요청한다. 
+	 }
  </script>
  <style>
   #tr_btn_modify{
@@ -137,7 +154,8 @@
 	    <input type=button value="수정하기" onClick="fn_enable(this.form)">
 	    <input type=button value="삭제하기" onClick="fn_remove_article('${contextPath}/board/removeArticle.do', ${article.articleNO})">
 	    <input type=button value="리스트로 돌아가기"  onClick="backToList(this.form)">
-	     <input type=button value="답글쓰기"  onClick="fn_reply_form('${contextPath}/board/replyForm.do', ${article.articleNO})">
+	    <input type=button value="답글쓰기"  onClick="fn_reply_form('${contextPath}/board/replyForm.do', ${article.articleNO})">
+	     <!--답글쓰기 클릭 시 fn_reply_form() 함수를 호출하면서 요청명과 글번호를 전달한다. -->
    </td>
   </tr>
  </table>

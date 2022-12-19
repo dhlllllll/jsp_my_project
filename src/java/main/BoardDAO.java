@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -24,6 +25,74 @@ public class BoardDAO {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public List selectAllArticles(Map<String,Integer> pagingMap){
+		List<ArticleVO> articlesList = new ArrayList<ArticleVO>();
+		int section = (Integer) pagingMap.get("section");
+		int pageNum = (Integer) pagingMap.get("pageNum");
+		try {
+			conn = dataFactory.getConnection();
+			String query = "SELECT * FROM ( " + "select ROWNUM as recNum,"
+					+ "LVL," + "articleNO,"
+					+ "parentNO," + "title,"
+					+ "id," + "writeDate"
+					+ " from (select LEVEL as LVL, "
+					+ "articleNO," + "parentNO," + "title," + "id,"
+					+ "writeDate" + " from t_board"
+					+ " START WITH parentNO=0" + "CONNECT BY PRIOR articleNO = parentNO"
+					+ " ORDER SIBLINGS BY articleNO DESC)" + ") "
+					+ " where recNum between(?-1)*100+(?-1)*10+1 and (?-1)*100+?*10";
+					//section과 pageNum값으로 레코드 번호의 범위를 조건으로 정한다. 
+					//(이들 값이 각각 1로 전송되었으면 between 1 and 10이 됨)
+			System.out.println(query);
+			pstmt = conn.prepareStatement(query);
+			pstmt.setInt(1, section);
+			pstmt.setInt(2, pageNum);
+			pstmt.setInt(3, section);
+			pstmt.setInt(4, pageNum);
+			ResultSet rs = pstmt.executeQuery();
+			while(rs.next()) {
+				int level = rs.getInt("lvl");
+				int articleNO = rs.getInt("articleNO");
+				int parentNO = rs.getInt("parentNO");
+				String title = rs.getString("title");
+				String id = rs.getString("id");
+				Date writeDate = rs.getDate("writeDate");
+				ArticleVO article = new ArticleVO();
+				article.setLevel(level);
+				article.setArticleNO(articleNO);
+				article.setParentNO(parentNO);
+				article.setTitle(title);
+				article.setId(id);
+				article.setWriteDate(writeDate);
+				articlesList.add(article);
+			}
+			rs.close();
+			pstmt.close();
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return articlesList;
+	}
+	
+	public int selectTotArticles() {
+		try {
+			conn = dataFactory.getConnection();
+			String query = "select count(articleNO) from t_board ";//전체글 수를 조회
+			System.out.println(query);
+			pstmt = conn.prepareStatement(query);
+			ResultSet rs = pstmt.executeQuery();
+			if (rs.next()) 
+				return (rs.getInt(1));
+			rs.close();
+			pstmt.close();
+			conn.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return 0;
 	}
 	
 	public List<ArticleVO> selectAllArticles(){

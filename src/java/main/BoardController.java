@@ -15,6 +15,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
@@ -51,33 +52,76 @@ public class BoardController extends HttpServlet {
 		String nextPage = "";
 		request.setCharacterEncoding("utf-8");
 		response.setContentType("text/html;charset=utf-8");
+		HttpSession session; //답글에 대한 부모 글 번호를 저장하기위해 세션을 사용한다. 
+		
 		String action = request.getPathInfo(); //요청명을 가져온다. 
 		System.out.println("action:" + action);
 		try {
 			List<ArticleVO> articlesList = new ArrayList<ArticleVO>();
 			if(action == null) {
-				articlesList = boardService.listArticles();
-				request.setAttribute("articlesList", articlesList);
-				nextPage = "/board01/listArticles.jsp";
+				String _section = request.getParameter("section");
+				String _pageNum = request.getParameter("pageNum");
+				//최초 요청 시 또는 /listArticle.do로 요청 시 section값과 pageNum값을 구한다. 
+				int section = Integer.parseInt(((_section == null) ? "1" : _section));
+				int pageNum = Integer.parseInt(((_pageNum == null) ? "1" : _pageNum));
+				//최초 요청 시 section값과 pageNum 값이 없으면 각각 1로 초기화합니다. 
+				Map<String, Integer> pagingMap = new HashMap<String, Integer>();
+				pagingMap.put("section", section);
+				pagingMap.put("pageNum", pageNum);
+				//section값과 pageNum값을 HashMap에 저장한 후 메서드로 넘긴다.
+				Map articlesMap = boardService.listArticles(pagingMap);
+				//section값과 pageNum값으로 해당 섹션과 페이지에 해당되는 글 목록을 조회한다. 
+				articlesMap.put("section", section);
+				articlesMap.put("pageNum", pageNum);
+				//브라우저에서 전송된 section값과 pageNum값을 articlesMap에 저장한 후 listarticles.jsp로 넘긴다.
+				request.setAttribute("articlesMap", articlesMap);
+				//조회된 글목록을 articlesMap으로 바인딩하여 listarticles.jsp로 넘긴다.
+				nextPage = "/board01/listArticles.jsp";			
+//				articlesList = boardService.listArticles();
+//				request.setAttribute("articlesList", articlesList);
+//				nextPage = "/board01/listArticles.jsp";
 			} else if(action.equals("/listArticles.do")) { //전체 글을 조회한다. 
-				articlesList = boardService.listArticles();
-				request.setAttribute("articlesList", articlesList); 
-				//조회된 글목록을 articlesList로 바인딩한 후 listArticles.jsp로 포워딩한다. 
-				nextPage = "/board01/listArticles.jsp";
+				String _section = request.getParameter("section");
+				String _pageNum = request.getParameter("pageNum");
+				//최초 요청 시 또는 /listArticle.do로 요청 시 section값과 pageNum값을 구한다. 
+				int section = Integer.parseInt(((_section == null) ? "1" : _section));
+				int pageNum = Integer.parseInt(((_pageNum == null) ? "1" : _pageNum));
+				//최초 요청 시 section값과 pageNum 값이 없으면 각각 1로 초기화합니다. 
+				Map<String, Integer> pagingMap = new HashMap<String, Integer>();
+				pagingMap.put("section", section);
+				pagingMap.put("pageNum", pageNum);
+				//section값과 pageNum값을 HashMap에 저장한 후 메서드로 넘긴다.
+				Map articlesMap = boardService.listArticles(pagingMap);
+				//section값과 pageNum값으로 해당 섹션과 페이지에 해당되는 글 목록을 조회한다. 
+				articlesMap.put("section", section);
+				articlesMap.put("pageNum", pageNum);
+				//브라우저에서 전송된 section값과 pageNum값을 articlesMap에 저장한 후 listarticles.jsp로 넘긴다.
+				request.setAttribute("articlesMap", articlesMap);
+				//조회된 글목록을 articlesMap으로 바인딩하여 listarticles.jsp로 넘긴다.
+				nextPage = "/board01/listArticles.jsp";	
+//				articlesList = boardService.listArticles();
+//				request.setAttribute("articlesList", articlesList); 
+//				//조회된 글목록을 articlesList로 바인딩한 후 listArticles.jsp로 포워딩한다. 
+//				nextPage = "/board01/listArticles.jsp";
 			} else if(action.equals("/articleForm.do")) { //글쓰기 창이 나타난다. 
 				nextPage = "/board01/articleForm.jsp";
 			} else if(action.equals("/addArticle.do")) { //새 글 추가 작업을 수행한다. 
 				int articleNO = 0;
 				Map<String, String> articleMap = upload(request,response);
+				System.out.println("init3");
 				String title = articleMap.get("title");//articleMap에 저장된 글 정보를 다시 가져온다. 
 				String content = articleMap.get("content");
 				String imageFileName = articleMap.get("imageFileName");
+				System.out.println("init4");
 				
 				articleVO.setParentNO(0);// 새 글의 부모 글 번호를 0으로 설정한다. 
 				articleVO.setId("hong");// 새 글의 작성자 아이디를 hong으로 설정한다. 
 				articleVO.setTitle(title);
 				articleVO.setContent(content);
-				articleVO.setImageFileName(imageFileName);				
+				if(imageFileName != null) {
+					articleVO.setImageFileName(imageFileName);		
+				}	
+				System.out.println("init5");
 				articleNO = boardService.addArticle(articleVO); //테이블에 새글을 추가한후 새글에 대한 글번호를 가져온다. 
 				
 				if(imageFileName != null && imageFileName.length() != 0) {
@@ -145,6 +189,42 @@ public class BoardController extends HttpServlet {
 									+ "/board/listArticles.do';" 
 									+ "</script>");//글 수정 후 location객체의 href속성을 이요해 글 상세화면을 나타낸다. 
 				return;
+			} else if(action.equals("/replyForm.do")){
+				int parentNO = Integer.parseInt(request.getParameter("parentNO"));
+				session = request.getSession();
+				session.setAttribute("parentNO", parentNO);
+				//답글 요청시 미리 부모 글 번호를 parentNO속성으로 세션에 저장한다. 
+				nextPage = "/board01/replyForm.jsp";
+			} else if(action.equals("/addReply.do")){
+				session = request.getSession();
+				int parentNO = (Integer)session.getAttribute("parentNO");
+				session.removeAttribute("parentNO");
+				//답글 전송시 세션에 저장된 parentNO를 가져온다. 
+				Map<String,String> articleMap = upload(request,response);
+				String title = articleMap.get("title");
+				String content = articleMap.get("content");
+				String imageFileName = articleMap.get("imageFileName");
+				articleVO.setParentNO(parentNO);//답글이 부모 글번호를 설정한다.
+				articleVO.setId("lee");//답글 작성자 아이디를 lee로 설정한다.
+				articleVO.setTitle(title);
+				articleVO.setContent(content);
+				articleVO.setImageFileName(imageFileName);
+				int articleNO = boardService.addReply(articleVO); //답글을 테이블에 추가한다. 
+				if(imageFileName != null && imageFileName.length() != 0) {
+					File srcFile = new File(ARTICLE_IMAGE_REPO + "\\" + "temp" + "\\" + imageFileName);
+					File destDir = new File(ARTICLE_IMAGE_REPO + "\\" + articleNO);
+					destDir.mkdir();
+					FileUtils.moveFileToDirectory(srcFile, destDir, true);
+					//답글에 첨부한 이미지를 temp 폴더에서 답글 번호 폴더로 이동한다.
+				}
+				PrintWriter pw = response.getWriter();
+				pw.print("<script>" + " alert('답글을 추가했습니다.');"
+									+ " location.href='"
+									+ request.getContextPath()
+									+ "/board/viewArticle.do?articleNO=" 
+									+ articleNO + "';"
+									+ "</script>");//글 수정 후 location객체의 href속성을 이요해 글 상세화면을 나타낸다. 
+				return;
 			}
 			RequestDispatcher dispatch = request.getRequestDispatcher(nextPage);
 			dispatch.forward(request, response);
@@ -181,8 +261,9 @@ public class BoardController extends HttpServlet {
 						if( idx == -1) {
 							idx = fileItem.getName().lastIndexOf("/");
 						}
-						
+						System.out.println("init");
 						String fileName = fileItem.getName().substring(idx + 1);
+						System.out.println("init2");
 						System.out.println("파일명:" + fileName);
 						articleMap.put(fileItem.getFieldName(), fileName);
 						//업로드된 파일의 이름을 Map에 "imageFileName","업로드파일이름"로 저장한다. 
